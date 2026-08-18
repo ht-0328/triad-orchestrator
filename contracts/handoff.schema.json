@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "phase", "from", "to", "inputs", "input_sha256", "expected_output", "deadline_seconds"],
+  "properties": {
+    "task_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+    "phase": {"type": "string"},
+    "from": {"type": "string"},
+    "to": {"type": "string"},
+    "inputs": {"type": "array", "items": {"type": "string"}},
+    "input_sha256": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "expected_output": {"type": "string"},
+    "deadline_seconds": {"type": "integer", "minimum": 1}
+  }
+}

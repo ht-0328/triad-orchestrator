@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PLATFORM_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+PROJECT_PARENT=""
+PROJECT_NAME=""
+TASK_ID="APP-001"
+TITLE=""
+IMPLEMENTATION_AUTHOR="claude"
+ASSUME_YES=false
+GENERATE_PLAN=true
+
+usage() {
+    cat <<'EOF'
+使用方法: triad-new [オプション]
+
+新しいアプリケーション用Gitリポジトリと、最初のTriadタスクを作成します。
+不足している項目は対話形式で入力できます。
+
+オプション:
+  --parent DIR                   プロジェクトを作成する親ディレクトリ
+  --name NAME                   プロジェクト名
+  --task-id ID                  最初のタスクID（既定: APP-001）
+  --title TITLE                 最初のタスクの表題
+  --implementation-author NAME  主力実装AI: claude または codex（既定: claude）
+  --no-plan                     Codexによる調査・協議ブリーフの自動作成を省略する
+  -y, --yes                     作成前の確認を省略する
+  -h, --help                    このヘルプを表示する
+
+例:
+  ./bin/triad-new
+  ./bin/triad-new --parent /home/user/workspace --name todo-app \
+    --task-id DEMO-001 --title "ブラウザで使えるTODOアプリを作る" --yes
+EOF
+}
+
+fail() {
+    printf 'エラー: %s\n' "$1" >&2
+    exit 2
+}
+
+require_value() {
+    local option="$1"
+    local value="${2-}"
+    [[ -n "$value" ]] || fail "$optionには値が必要です"
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --parent)
+            require_value "$1" "${2-}"
+            PROJECT_PARENT="$2"
+            shift 2
+            ;;
+        --name)
+            require_value "$1" "${2-}"
+            PROJECT_NAME="$2"
+            shift 2
+            ;;
+        --task-id)
+            require_value "$1" "${2-}"
+            TASK_ID="$2"
+            shift 2
+            ;;
+        --title)
+            require_value "$1" "${2-}"
+            TITLE="$2"
+            shift 2
+            ;;
+        --implementation-author)
+            require_value "$1" "${2-}"
+            IMPLEMENTATION_AUTHOR="$2"
+            shift 2
+            ;;
+        --no-plan)
+            GENERATE_PLAN=false
+            shift
+            ;;
+        -y|--yes)
+            ASSUME_YES=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            fail "不明なオプションです: $1"
+            ;;
+    esac
+done
+
+command -v git >/dev/null 2>&1 || fail "gitが見つかりません"
+command -v python3 >/dev/null 2>&1 || fail "python3が見つかりません"
+if $GENERATE_PLAN; then
+    command -v codex >/dev/null 2>&1 || fail "調査・協議ブリーフを作成するcodexが見つかりません。省略する場合は--no-planを指定してください"
+fi
+
+CURRENT_DIR="$(pwd -P)"
+case "$CURRENT_DIR" in
+    "$PLATFORM_ROOT"|"$PLATFORM_ROOT"/*)
+        DEFAULT_PARENT="$(dirname -- "$PLATFORM_ROOT")"
+        ;;
+    *)
+        DEFAULT_PARENT="$CURRENT_DIR"
+        ;;
+esac
+
+if [[ -t 0 ]]; then
+    if [[ -z "$PROJECT_PARENT" ]]; then
+        read -r -p "作成先の親ディレクトリ [$DEFAULT_PARENT]: " PROJECT_PARENT
+    fi
+    PROJECT_PARENT="${PROJECT_PARENT:-$DEFAULT_PARENT}"
+
+    if [[ -z "$PROJECT_NAME" ]]; then
+        read -r -p "プロジェクト名: " PROJECT_NAME
+    fi
+
+    read -r -p "最初のタスクID [$TASK_ID]: " INPUT_TASK_ID
+    TASK_ID="${INPUT_TASK_ID:-$TASK_ID}"
+
+    if [[ -z "$TITLE" ]]; then
+        read -r -p "作りたいもの [${PROJECT_NAME}を作成する]: " TITLE
+    fi
+    TITLE="${TITLE:-${PROJECT_NAME}を作成する}"
+
+    read -r -p "主力実装AI [$IMPLEMENTATION_AUTHOR]: " INPUT_AUTHOR
+    IMPLEMENTATION_AUTHOR="${INPUT_AUTHOR:-$IMPLEMENTATION_AUTHOR}"
+else
+    PROJECT_PARENT="${PROJECT_PARENT:-$DEFAULT_PARENT}"
+    [[ -n "$PROJECT_NAME" ]] || fail "非対話実行では--nameが必要です"
+    TITLE="${TITLE:-${PROJECT_NAME}を作成する}"
+    $ASSUME_YES || fail "非対話実行では--yesが必要です"
+fi
+
+[[ "$PROJECT_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] \
+    || fail "プロジェクト名は1～64文字の英数字、ピリオド、アンダースコア、ハイフンで指定してください"
+[[ "$PROJECT_NAME" != "." && "$PROJECT_NAME" != ".." ]] || fail "プロジェクト名に.または..は使用できません"
+[[ "$TASK_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$ ]] \
+    || fail "タスクIDは2～64文字の英数字、ピリオド、アンダースコア、ハイフンで指定してください"
+[[ "$IMPLEMENTATION_AUTHOR" == "claude" || "$IMPLEMENTATION_AUTHOR" == "codex" ]] \
+    || fail "主力実装AIはclaudeまたはcodexで指定してください"
+[[ -n "$TITLE" ]] || fail "タスクの表題は空にできません"
+[[ "$TITLE" != *$'\n'* && "$TITLE" != *$'\r'* ]] || fail "タスクの表題に改行は使用できません"
+
+[[ -d "$PROJECT_PARENT" ]] || fail "作成先の親ディレクトリが存在しません: $PROJECT_PARENT"
+PROJECT_PARENT="$(cd -- "$PROJECT_PARENT" && pwd -P)"
+TARGET="$PROJECT_PARENT/$PROJECT_NAME"
+
+case "$TARGET" in
+    "$PLATFORM_ROOT"|"$PLATFORM_ROOT"/*)
+        fail "アプリケーションはtriad-orchestratorの外に作成してください: $TARGET"
+        ;;
+esac
+[[ -w "$PROJECT_PARENT" ]] || fail "作成先の親ディレクトリへ書き込めません: $PROJECT_PARENT"
+[[ ! -e "$TARGET" ]] || fail "作成先はすでに存在します: $TARGET"
+
+GIT_IDENTITY_NAME="${GIT_AUTHOR_NAME:-}"
+GIT_IDENTITY_EMAIL="${GIT_AUTHOR_EMAIL:-}"
+if [[ -z "$GIT_IDENTITY_NAME" ]]; then
+    GIT_IDENTITY_NAME="$(git config --get user.name || true)"
+fi
+if [[ -z "$GIT_IDENTITY_EMAIL" ]]; then
+    GIT_IDENTITY_EMAIL="$(git config --get user.email || true)"
+fi
+[[ -n "$GIT_IDENTITY_NAME" && -n "$GIT_IDENTITY_EMAIL" ]] \
+    || fail "Gitのuser.nameとuser.emailを設定してから実行してください"
+
+printf '\n次のプロジェクトを作成します。\n'
+printf '  作成先: %s\n' "$TARGET"
+printf '  タスク: %s — %s\n' "$TASK_ID" "$TITLE"
+printf '  主力実装AI: %s\n' "$IMPLEMENTATION_AUTHOR"
+
+if ! $ASSUME_YES; then
+    read -r -p "作成しますか？ [y/N]: " CONFIRMATION
+    case "$CONFIRMATION" in
+        y|Y|yes|YES) ;;
+        *)
+            printf '作成を中止しました。\n'
+            exit 0
+            ;;
+    esac
+fi
+
+mkdir -- "$TARGET"
+git -C "$TARGET" init -b main >/dev/null
+printf '# %s\n\nTriad Orchestratorで開発するアプリケーションです。\n' "$PROJECT_NAME" >"$TARGET/README.md"
+printf '.env\n.env.*\n!.env.example\n__pycache__/\n*.py[cod]\nnode_modules/\ndist/\nbuild/\n' >"$TARGET/.gitignore"
+
+"$SCRIPT_DIR/triad" init "$TASK_ID" \
+    --title "$TITLE" \
+    --brief "$TITLE" \
+    --implementation-author "$IMPLEMENTATION_AUTHOR" \
+    --repo "$TARGET" >/dev/null
+
+git -C "$TARGET" add README.md .gitignore AGENTS.md CLAUDE.md GEMINI.md .ai-dev
+COMMIT_TRAILERS="$(printf 'Triad-Task: %s\nProduced-By: triad-orchestrator' "$TASK_ID")"
+git -C "$TARGET" commit \
+    -m "chore: プロジェクトを初期化" \
+    -m "$COMMIT_TRAILERS" >/dev/null
+
+INTAKE="$TARGET/.ai-dev/tasks/$TASK_ID/input/intake.md"
+printf '\nプロジェクトを作成しました。\n'
+printf '  ルート: %s\n' "$TARGET"
+
+if ! $GENERATE_PLAN; then
+    printf '  状態: INTAKE\n\n'
+    printf '調査・協議ブリーフの自動作成を省略しました。VS CodeのCodexまたはClaude Codeチャットへ「3AIの協議を進めて」と依頼してください。\n'
+    printf 'チャット担当AIが内部で実行するコマンド:\n'
+    printf '  %q run %q --repo %q\n' "$SCRIPT_DIR/triad" "$TASK_ID" "$TARGET"
+    exit 0
+fi
+
+printf '\nCodexが短い依頼から調査・協議ブリーフを作成しています...\n'
+if ! "$SCRIPT_DIR/triad" run "$TASK_ID" --repo "$TARGET" >/dev/null; then
+    printf 'エラー: プロジェクトは作成済みですが、調査・協議ブリーフの作成に失敗しました。VS Codeチャットへ再試行を依頼してください。\n' >&2
+    printf 'チャット担当AIが内部で実行するコマンド:\n' >&2
+    printf '  %q run %q --repo %q\n' "$SCRIPT_DIR/triad" "$TASK_ID" "$TARGET" >&2
+    exit 2
+fi
+"$SCRIPT_DIR/triad" advance "$TASK_ID" --outcome success --repo "$TARGET" >/dev/null
+
+git -C "$TARGET" add .ai-dev
+PLAN_TRAILERS="$(printf 'Triad-Task: %s\nProduced-By: codex' "$TASK_ID")"
+git -C "$TARGET" commit \
+    -m "docs(ai-dev): ${TASK_ID}の調査ブリーフを作成" \
+    -m "$PLAN_TRAILERS" >/dev/null
+
+printf '\n調査・協議ブリーフを作成しました。\n'
+printf '  ブリーフ: %s\n' "$INTAKE"
+printf '  状態: RESEARCH\n'
+printf '\nこの時点では人間の承認は求めません。VS Codeチャット担当AIが3AIの調査・提案・相互レビューを続け、統合提案が完成した時点で提示します。\n'
+printf 'チャット担当AIは次の状態から進行を継続します:\n'
+printf '  %q status %q --json --repo %q\n' "$SCRIPT_DIR/triad" "$TASK_ID" "$TARGET"

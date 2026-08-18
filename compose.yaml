@@ -1,0 +1,10 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    command: ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp

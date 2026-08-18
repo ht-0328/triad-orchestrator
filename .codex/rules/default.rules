@@ -1,0 +1,94 @@
+# AGENTS.mdの「コマンドとファイル変更の確認方針」をCodex CLIの実行ポリシーとして強制する。
+# ルールはStarlarkのprefix_ruleで記述し、decisionはforbidden > prompt > allowの優先順で解決される。
+# 本ファイルはCodexが「trusted」と判断したプロジェクトでのみ読み込まれる。
+
+# --- 参照系（事前確認不要） ---
+prefix_rule(pattern = ["pwd"], decision = "allow")
+prefix_rule(pattern = ["ls"], decision = "allow")
+prefix_rule(pattern = ["cat"], decision = "allow")
+prefix_rule(pattern = ["head"], decision = "allow")
+prefix_rule(pattern = ["tail"], decision = "allow")
+prefix_rule(pattern = ["wc"], decision = "allow")
+prefix_rule(pattern = ["stat"], decision = "allow")
+prefix_rule(pattern = ["file"], decision = "allow")
+prefix_rule(pattern = ["readlink"], decision = "allow")
+prefix_rule(pattern = ["realpath"], decision = "allow")
+prefix_rule(pattern = ["rg"], decision = "allow")
+prefix_rule(pattern = ["sed", "-n"], decision = "allow")
+
+# --- Gitの参照 ---
+prefix_rule(pattern = ["git", "status"], decision = "allow")
+prefix_rule(pattern = ["git", "diff"], decision = "allow")
+prefix_rule(pattern = ["git", "log"], decision = "allow")
+prefix_rule(pattern = ["git", "show"], decision = "allow")
+prefix_rule(pattern = ["git", "rev-parse"], decision = "allow")
+prefix_rule(pattern = ["git", "ls-files"], decision = "allow")
+prefix_rule(pattern = ["git", "check-ignore"], decision = "allow")
+prefix_rule(pattern = ["git", "branch", "--show-current"], decision = "allow")
+
+# --- CLIの存在・仕様確認 ---
+prefix_rule(pattern = ["command", "-v"], decision = "allow")
+prefix_rule(pattern = ["type"], decision = "allow")
+prefix_rule(pattern = ["git", "--help"], decision = "allow")
+prefix_rule(pattern = ["git", "--version"], decision = "allow")
+prefix_rule(pattern = ["docker", "--help"], decision = "allow")
+prefix_rule(pattern = ["docker", "--version"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "--help"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "version"], decision = "allow")
+prefix_rule(pattern = ["python3", "--help"], decision = "allow")
+prefix_rule(pattern = ["python3", "--version"], decision = "allow")
+
+# --- Triadの参照・診断 ---
+prefix_rule(pattern = ["bin/triad", "doctor"], decision = "allow")
+prefix_rule(pattern = ["bin/triad", "status"], decision = "allow")
+prefix_rule(pattern = ["bin/triad", "--help"], decision = "allow")
+prefix_rule(pattern = ["bin/triad-new", "--help"], decision = "allow")
+
+# --- Docker Composeの参照 ---
+prefix_rule(pattern = ["docker", "compose", "config"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "ps"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "logs"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "images"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "top"], decision = "allow")
+
+# --- Docker Composeによる検証・起動確認 ---
+prefix_rule(pattern = ["docker", "compose", "build"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "run", "--rm", "test"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "up", "-d"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "stop"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "down"], decision = "allow")
+
+# --- 基盤の補助テスト ---
+prefix_rule(pattern = ["python3", "-m", "unittest", "discover", "-s", "tests"], decision = "allow")
+
+# --- 明示禁止：AGENTS.md/CLAUDE.mdの「決して実行しないこと」に対応 ---
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "forbidden",
+    justification = "push/force pushはAI運用規約で禁止。人間が手動実行する。",
+)
+prefix_rule(
+    pattern = ["git", "rebase"],
+    decision = "forbidden",
+    justification = "履歴の書き換えはAI運用規約で禁止。",
+)
+prefix_rule(
+    pattern = ["git", "filter-branch"],
+    decision = "forbidden",
+    justification = "履歴の書き換えはAI運用規約で禁止。",
+)
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "履歴の書き換えはAI運用規約で禁止。",
+)
+prefix_rule(
+    pattern = ["docker", "compose", "down", "-v"],
+    decision = "forbidden",
+    justification = "ボリューム削除を伴う起動確認は許可対象外。",
+)
+prefix_rule(
+    pattern = ["docker", "compose", "down", "--volumes"],
+    decision = "forbidden",
+    justification = "ボリューム削除を伴う起動確認は許可対象外。",
+)

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+output=''
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = '--output-last-message' ]; then
+        shift
+        output="$1"
+    fi
+    shift
+done
+
+test -n "$output"
+printf '%s' '{"summary":"調査・協議ブリーフを作成","content":"# 調査・協議ブリーフ\n\n## 実現したい結果\n\n小さく開始できる方法を検討する。\n\n## 調査論点\n\n- 実現方法を比較する\n\n## 仮定\n\n- 詳細は3AIの協議で具体化する","verdict":"not_applicable","human_decisions":[]}' >"$output"

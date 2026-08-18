@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "agents": {
+    "codex": {
+      "executable": "codex",
+      "artifact_timeout_seconds": 900,
+      "workspace_timeout_seconds": 3600
+    },
+    "claude": {
+      "executable": "claude",
+      "artifact_timeout_seconds": 900,
+      "workspace_timeout_seconds": 3600
+    },
+    "antigravity": {
+      "executable": "agy",
+      "artifact_timeout_seconds": 1200,
+      "workspace_timeout_seconds": 1200
+    }
+  },
+  "automatic_retries": {
+    "read_only": 1,
+    "workspace_write": 0
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "task_id",
+    "title",
+    "state",
+    "implementation_author",
+    "sequence",
+    "degraded",
+    "approvals",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "task_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+    "title": {"type": "string", "minLength": 1},
+    "state": {
+      "enum": [
+        "INTAKE", "RESEARCH", "SOLUTION_PROPOSAL", "PROPOSAL_REVIEW",
+        "PROPOSAL_FACT_CHECK", "SYNTHESIS", "SYNTHESIS_REVIEW",
+        "REQUIREMENTS", "REQUIREMENTS_REVIEW", "DESIGN", "DESIGN_RESEARCH", "DESIGN_REVIEW",
+        "PLAN", "PLAN_REVIEW", "AWAITING_PLAN_APPROVAL",
+        "TASK_BREAKDOWN", "TASK_PLAN_REVIEW", "IMPLEMENTATION",
+        "CODE_REVIEW", "FIX", "BUILD_TEST", "E2E_VERIFY",
+        "DELIVERY_PREP", "DELIVERY_REVIEW", "AWAITING_DELIVERY_APPROVAL", "DELIVERED",
+        "CHANGE_REQUEST"
+      ]
+    },
+    "implementation_author": {"enum": ["claude", "codex"]},
+    "sequence": {"type": "integer", "minimum": 0},
+    "degraded": {"type": "array"},
+    "approvals": {"type": "object"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"}
+  }
+}

@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.token
+.ai-dev/runtime/
+.ai-dev/worktrees/
+
+# ローカル参考資料の原本。著作物や大容量ファイルをGitへ含めない。
+docs/reference-library/
+docs/pdf/
+docs/**/*.pdf
+docs/**/*.epub
