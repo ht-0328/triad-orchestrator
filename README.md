@@ -9,6 +9,22 @@ Codex、Claude Code、Google Antigravity CLI (`agy`) が、それぞれの強み
 - Antigravity：公式情報・競合の調査、提案の事実確認、設計前提の実地確認、ブラウザE2E
 - 人間：計画承認、成果物完成確認、承認済み計画の変更、リリース、push、デプロイ、破壊的DB操作の最終判断
 
+```mermaid
+graph LR
+    Human(("人間"))
+    subgraph Triad["3AIによる調査・提案・相互レビュー"]
+        Codex["Codex<br/>司令塔・統合・タスク分解"]
+        Claude["Claude Code<br/>実現案・要件・設計・実装"]
+        Antigravity["Antigravity<br/>調査・事実確認・E2E"]
+    end
+    Human -- "短い依頼" --> Triad
+    Codex <--> Claude
+    Claude <--> Antigravity
+    Antigravity <--> Codex
+    Triad -- "承認ゲート1: 計画承認" --> Human
+    Triad -- "承認ゲート2: 成果物完成確認" --> Human
+```
+
 AI CLIとOAuth資格情報はWSLホストに置きます。対象アプリの依存関係、ビルド、起動、テストは対象リポジトリのDocker Compose内で実行します。
 
 ## 配置と利用の前提
@@ -72,7 +88,7 @@ MVPは以下を実装しています。
 
 チャット経路は提示対象の差し替えをハッシュで検出しますが、人間の発言そのものをCLIが暗号学的に証明する仕組みではありません。チャット担当AIがリポジトリ指示を守ることを信頼するローカル運用向けです。侵害されたAIからも承認を保護する必要がある場合は、保守用の対話端末経路を使用します。
 
-詳しい運用は[運用手順](docs/platform/operations.md)、設計判断は[アーキテクチャ](docs/platform/architecture.md)を参照してください。文書全体の構成は[文書案内](docs/README.md)にまとめています。
+詳しい運用は[運用手順](docs/platform/operations.md)、設計判断は[アーキテクチャ](docs/platform/architecture.md)、コード単位のクラス図・フローチャート・シーケンス図は[実装設計書](docs/platform/design/index.md)を参照してください。文書全体の構成は[文書案内](docs/README.md)にまとめています。
 
 ## 基盤自身のテスト
 

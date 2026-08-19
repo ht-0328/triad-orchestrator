@@ -2,6 +2,28 @@
 
 この文書は、アダプター設計に使用した公式情報と、ローカル環境で確認したバージョンを記録する。実行時には、各バージョン固有のコマンドヘルプを正とする。
 
+```mermaid
+graph LR
+    subgraph Codex["Codex（codex-cli 0.147.0）"]
+        C1["認証: ChatGPT契約 (codex login)"]
+        C2["入口: codex exec"]
+        C3["読取専用: --sandbox read-only"]
+        C4["書込: --approve-for-me"]
+    end
+    subgraph Claude["Claude Code（2.1.233）"]
+        L1["認証: Claude.ai Proログイン"]
+        L2["入口: claude -p"]
+        L3["読取専用: --permission-mode plan"]
+        L4["書込: --permission-mode acceptEdits"]
+    end
+    subgraph Antigravity["Antigravity（agy 1.1.14）"]
+        A1["認証: Google OAuth"]
+        A2["入口: agy -p"]
+        A3["読取専用のみ: --mode plan --sandbox"]
+        A4["書込権限なし"]
+    end
+```
+
 | CLI | ローカルバージョン | 個人契約による認証 | 非対話実行の入口 | 構造化出力・安全制御 |
 |---|---:|---|---|---|
 | Codex | `codex-cli 0.147.0` | ChatGPT契約で`codex login` | `codex exec` | JSONL、出力スキーマ、最終メッセージファイル、読み取り専用／ワークスペースサンドボックス、一時セッション |

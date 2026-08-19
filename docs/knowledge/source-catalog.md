@@ -2,6 +2,33 @@
 
 原本はすべて`docs/reference-library/`配下にあり、Git管理対象外である。出典IDは知識文書から参照するための安定識別子で、原本ファイル名を変更しても再利用する。
 
+```mermaid
+mindmap
+  root((出典台帳))
+    AIエージェント
+      SRC-AI-001
+      SRC-AI-002
+      SRC-AI-003
+    ソフトウェア設計
+      SRC-ARCH-001
+      SRC-ARCH-002
+      SRC-ARCH-003
+      SRC-ARCH-004
+      SRC-ARCH-005
+      SRC-ARCH-006
+    UI/UX
+      SRC-UI-001
+      SRC-UI-002
+    技術文書
+      SRC-WRITE-001
+      SRC-WRITE-002
+      SRC-WRITE-003
+      SRC-WRITE-004
+    AWS
+      SRC-AWS-001
+      SRC-AWS-002
+```
+
 | 出典ID | 書名 | 分野 | ローカル原本 | 主な適用先 | 鮮度 |
 |---|---|---|---|---|---|
 | `SRC-AI-001` | 実践 AIエージェント開発 | AIエージェント | `ai-engineering/practical-ai-agent-development.pdf` | 役割分離、協調、評価 | 原則中心 |

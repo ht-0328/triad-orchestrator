@@ -2,9 +2,18 @@
 
 このディレクトリは、基盤の正本となる文書、参考資料から抽出した知識、レビュー証跡、Git対象外の原本資料を分離して管理する。
 
+```mermaid
+graph TD
+    RefLib["reference-library/<br/>書籍・PDF等の原本<br/>（Git対象外）"] -- "要約・一般化" --> Knowledge["knowledge/<br/>品質基準・チェックリスト"]
+    Knowledge -- "初回タスク作成時にハッシュ付き固定" --> App["対象アプリの<br/>.ai-dev/guidance/"]
+    Research["research/<br/>CLI・外部仕様の調査記録"] -- "設計判断の裏付け" --> Platform["platform/<br/>設計（architecture.md）<br/>運用（operations.md）<br/>実装設計書（design/）"]
+    Knowledge -- "参照" --> Platform
+    Platform -- "変更時の自己レビュー" --> Reviews["reviews/<br/>基盤自身への独立レビュー証跡"]
+```
+
 | パス | 内容 | Git管理 |
 |---|---|---|
-| `platform/` | オーケストレーターの設計と運用手順 | 対象 |
+| `platform/` | オーケストレーターの設計（`architecture.md`）と運用手順（`operations.md`）、コード単位の実装設計書（`design/`） | 対象 |
 | `knowledge/` | 参考資料を要約・一般化した品質基準とチェックリスト | 対象 |
 | `research/` | CLIや外部仕様の調査記録 | 対象 |
 | `reviews/` | 基盤自身に対する独立レビュー証跡 | 対象 |

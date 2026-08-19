@@ -52,6 +52,24 @@
 
 すべて揃うと状態は`AWAITING_PLAN_APPROVAL`になる。チャット担当AIは計画書に加え、比較した候補、各AIの主な見解、レビュー結果、Antigravityをスキップした場合の不足を提示して停止する。人間はその後のメッセージで「承認」または具体的な修正理由を返す。
 
+```mermaid
+flowchart TD
+    A["人間: 作成先・プロジェクト名・作りたいものを依頼"] --> B["チャット担当AI: bin/triad-new を非対話実行<br/>(Gitリポジトリ・.ai-dev・初回コミット・調査ブリーフ作成)"]
+    B --> C["1. Antigravity: 公式情報・競合・現行仕様・技術制約を調査"]
+    C --> D["2. Claude: 複数の実現案と推奨案を作成"]
+    D --> E["3. Codex: 独立見解を組み立てClaude案をレビュー"]
+    E --> F["4. Antigravity: 両者の外部事実・現行仕様を再確認"]
+    F --> G["5. Codex: 候補比較・採用方針・採否理由・仮定・リスクを決定"]
+    G --> H["6. Claude: 統合方針の正確性・公平性・実現可能性をレビュー"]
+    H --> I["7. Claude: 検証可能な要件を定義 → Codexがレビュー"]
+    I --> J["8. Claude: アーキテクチャ・API・データ・運用・テストを設計<br/>→ Antigravityが実地確認 → Codexがレビュー"]
+    J --> K["9. Codex: 統合方針・要件・設計・レビュー判定・リスク・仮定を<br/>1件の計画書へ統合 → Claudeが最終レビュー"]
+    K --> L["状態 = AWAITING_PLAN_APPROVAL<br/>チャット担当AIが計画書一式を提示して停止"]
+    L --> M{"人間の応答"}
+    M -- 承認 --> N["承認ゲート1を通過 → 成果物マクロフェーズへ"]
+    M -- 修正理由 --> O["INTAKEへ差し戻し、3AIが調査からやり直し"]
+```
+
 ## 既存アプリケーションでのタスク開始
 
 対象は既存のGitリポジトリでなければならない。チャットへ対象パスと短い依頼を伝える。
@@ -74,6 +92,17 @@
 
 レビューフェーズでは、レビュー文書のフロントマターに保存された判定と一致する結果だけを使用する。調査とE2Eのスキップは、担当機能を利用できない場合に限り、具体的な理由を履歴へ残す。
 
+```mermaid
+flowchart LR
+    A["1. 状態・担当・期待成果物・<br/>未解決の判断を確認<br/>(triad status --json)"] --> B["2. 現在フェーズの担当AI<br/>またはDocker Compose検証を実行<br/>(triad run)"]
+    B --> C["3. 成果物とレビュー判定を検証し<br/>状態遷移を進める<br/>(triad advance)"]
+    C --> D["4. 必要なローカルコミットを作成"]
+    D --> E{"5. 継続条件"}
+    E -- 承認・回答・追加権限が必要 --> F["停止して人間へ提示"]
+    E -- エラーで継続不能 --> F
+    E -- 継続可能 --> A
+```
+
 ## 人間による承認ゲート
 
 Triadは`AWAITING_PLAN_APPROVAL`（計画承認）と`AWAITING_DELIVERY_APPROVAL`（成果物完成確認）の2箇所でだけ人間を止める。いずれも次の二段階を必須とする。
@@ -84,6 +113,27 @@ Triadは`AWAITING_PLAN_APPROVAL`（計画承認）と`AWAITING_DELIVERY_APPROVAL
 作業開始時の「完成まで進めて」「全部任せる」のような包括的な依頼は、まだ提示されていない成果物の承認として扱わない。沈黙、曖昧な返答、AI自身の判断も承認ではない。人間は確認句やコマンドを転記する必要がない。
 
 確認句は対象パスとSHA-256に結び付く。提示後に対象が変化した場合、古い確認句では操作できない。承認記録には対象ファイルのSHA-256と`confirmation_channel: vscode-chat`を保存する。承認後、チャット担当AIは記録と新しい状態をローカルコミットして通常フェーズへ戻る。
+
+人間から見た2段階の流れは次の通り（CLI内部の確認句検証ロジックは[実装設計書のcli.md](design/cli.md#確認句confirmation-phraseの2段階プロトコル)を参照）。
+
+```mermaid
+sequenceDiagram
+    actor Human as 人間
+    participant Chat as チャット担当AI
+
+    Note over Chat: 計画書一式 or 完成した成果物の準備が整った
+    Chat->>Human: 対象成果物・重要な変更点・対象ハッシュ・<br/>承認の影響を提示して停止
+    Note over Human: この時点ではまだ何も実行されない
+    alt 承認する
+        Human->>Chat: 「承認」「この内容で進めて」等、明示的な意思表示
+        Chat->>Chat: 確認句をCLIへ中継 → 承認ゲート通過
+    else 修正が必要
+        Human->>Chat: 具体的な修正理由
+        Chat->>Chat: 確認句をCLIへ中継 → 差し戻し・作り直し
+    else 包括的な依頼のみ／沈黙／曖昧な返答
+        Note over Chat: 承認として扱わず、停止を継続
+    end
+```
 
 チャット確認句は秘密ではなく、CLI単体では人間の発言を証明しない。チャット担当AIがリポジトリの二段階確認規約を守ることを信頼する、単一ユーザーのローカル運用向け経路である。プロンプトインジェクションや侵害されたチャット担当からも承認を保護する必要があると人間が示した場合は、チャットで承認を中継せず、対話端末による直接確認が必要だと伝える。
 
@@ -114,6 +164,22 @@ AIが重要な質問を提示した場合、通常の状態遷移は停止する
 計画承認後（`TASK_BREAKDOWN`以降`DELIVERED`未満）、AIは承認済み計画を変更せず、変更要求を作成して停止する。承認されると計画承認を無効化し、`INTAKE`から3AIの調査・提案・要件・設計・計画をやり直す。計画承認前の問題（3AIの協議中や計画提示直後に生じた問題）は、より軽量な計画差し戻し（`advance --outcome needs_changes`）で扱うため、変更要求の対象にしない。
 
 チャット担当AIは変更理由と影響を人間へ提示する。提示後の別メッセージで人間が明示的に承認した場合だけ、承認を無効化して再開する。
+
+3種類の差し戻し系フローの使い分けは次の通り。
+
+```mermaid
+flowchart TD
+    Start{"問題が生じた場面は？"} -- 計画承認待ち<br/>AWAITING_PLAN_APPROVAL --> A["計画の差し戻し<br/>advance --outcome needs_changes"]
+    A --> A2["INTAKEへ戻り、3AIが調査・提案・<br/>要件・設計・計画をやり直す"]
+
+    Start -- 成果物完成確認待ち<br/>AWAITING_DELIVERY_APPROVAL --> B["成果物の作り直し<br/>advance --outcome needs_changes"]
+    B --> B2["FIXへ戻る。承認済み計画は変更せず、<br/>その範囲内で実装のみやり直す"]
+    B2 --> B3["CODE_REVIEW→BUILD_TEST→E2E_VERIFY→<br/>DELIVERY_PREP→DELIVERY_REVIEWを経て<br/>再びAWAITING_DELIVERY_APPROVALへ"]
+
+    Start -- 計画承認後に承認済み計画<br/>自体との矛盾を発見<br/>(TASK_BREAKDOWN〜AWAITING_DELIVERY_APPROVAL) --> C["変更要求<br/>request-change"]
+    C --> C2["人間が理由と影響を確認して承認<br/>approve-change"]
+    C2 --> C3["計画承認を無効化し、INTAKEから<br/>3AIの調査・提案・要件・設計・計画をやり直す"]
+```
 
 ## 同時操作について
 
