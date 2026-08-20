@@ -187,7 +187,7 @@ fi
 mkdir -- "$TARGET"
 git -C "$TARGET" init -b main >/dev/null
 printf '# %s\n\nTriad Orchestratorで開発するアプリケーションです。\n' "$PROJECT_NAME" >"$TARGET/README.md"
-printf '.env\n.env.*\n!.env.example\n__pycache__/\n*.py[cod]\nnode_modules/\ndist/\nbuild/\n' >"$TARGET/.gitignore"
+printf '.env\n.env.*\n!.env.example\n__pycache__/\n*.py[cod]\nnode_modules/\ndist/\nbuild/\n*.code-workspace\n' >"$TARGET/.gitignore"
 
 "$SCRIPT_DIR/triad" init "$TASK_ID" \
     --title "$TITLE" \
@@ -201,9 +201,17 @@ git -C "$TARGET" commit \
     -m "chore: プロジェクトを初期化" \
     -m "$COMMIT_TRAILERS" >/dev/null
 
+WORKSPACE_FILE="$TARGET/$PROJECT_NAME.code-workspace"
+"$SCRIPT_DIR/triad-workspace" \
+    --app-dir "$TARGET" \
+    --platform-dir "$PLATFORM_ROOT" \
+    --name "$PROJECT_NAME" >/dev/null
+
 INTAKE="$TARGET/.ai-dev/tasks/$TASK_ID/input/intake.md"
 printf '\nプロジェクトを作成しました。\n'
 printf '  ルート: %s\n' "$TARGET"
+printf '  VS Codeワークスペース: %s\n' "$WORKSPACE_FILE"
+printf '  複数ルートで開く: %q %q\n' "$SCRIPT_DIR/triad-open-workspace" "$WORKSPACE_FILE"
 
 if ! $GENERATE_PLAN; then
     printf '  状態: INTAKE\n\n'

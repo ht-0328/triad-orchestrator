@@ -36,6 +36,7 @@
       "command(bin/triad status)",
       "command(bin/triad --help)",
       "command(bin/triad-new --help)",
+      "command(bin/triad-open-workspace)",
       "command(docker compose config)",
       "command(docker compose ps)",
       "command(docker compose logs)",

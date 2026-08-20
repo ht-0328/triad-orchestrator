@@ -46,6 +46,7 @@
       "Bash(docker compose stop:*)",
       "Bash(docker compose down:*)",
       "Bash(python3 -m unittest discover -s tests:*)",
+      "Bash(bin/triad-open-workspace:*)",
       "WebSearch",
       "WebFetch"
     ],

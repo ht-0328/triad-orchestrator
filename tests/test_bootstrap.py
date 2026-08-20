@@ -91,6 +91,19 @@ class NewProjectScriptTests(unittest.TestCase):
             self.assertIn("VS Codeチャット", result.stdout)
             self.assertIn("この時点では人間の承認は求めません", result.stdout)
 
+            workspace_file = project / "sample-app.code-workspace"
+            self.assertTrue(workspace_file.is_file())
+            document = json.loads(workspace_file.read_text(encoding="utf-8"))
+            self.assertEqual(document["folders"][0], {"name": "sample-app", "path": "."})
+            resolved_platform = (project / document["folders"][1]["path"]).resolve()
+            self.assertEqual(resolved_platform, PLATFORM_ROOT.resolve())
+            self.assertIn(str(workspace_file), result.stdout)
+            check_ignore = subprocess.run(
+                ["git", "-C", str(project), "check-ignore", "-q", "sample-app.code-workspace"],
+                check=False,
+            )
+            self.assertEqual(check_ignore.returncode, 0)
+
     def test_can_initialize_without_running_ai_plan(self):
         with tempfile.TemporaryDirectory() as temporary:
             result = self.run_script(
@@ -111,6 +124,38 @@ class NewProjectScriptTests(unittest.TestCase):
             self.assertTrue((task / "input" / "brief.md").is_file())
             self.assertFalse((task / "input" / "intake.md").exists())
             self.assertIn(" run ", result.stdout)
+
+    def test_succeeds_without_code_cli_on_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            entries = os.environ.get("PATH", "").split(os.pathsep)
+            filtered_path = os.pathsep.join(
+                entry for entry in entries if entry and not (Path(entry) / "code").is_file()
+            )
+            environment = self.environment()
+            environment["PATH"] = filtered_path
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--parent",
+                    temporary,
+                    "--name",
+                    "no-code-cli-app",
+                    "--title",
+                    "codeコマンドがない環境でも作成できる",
+                    "--no-plan",
+                    "--yes",
+                ],
+                cwd=PLATFORM_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            workspace_file = Path(temporary) / "no-code-cli-app" / "no-code-cli-app.code-workspace"
+            self.assertTrue(workspace_file.is_file())
 
     def test_rejects_project_inside_orchestrator_repository(self):
         result = self.run_script(

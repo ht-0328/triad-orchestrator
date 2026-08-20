@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+if [ -n "${FAKE_CODE_RECORD:-}" ]; then
+    printf '%s\n' "$*" >"$FAKE_CODE_RECORD"
+fi
+exit 0

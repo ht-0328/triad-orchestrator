@@ -43,6 +43,7 @@ prefix_rule(pattern = ["bin/triad", "doctor"], decision = "allow")
 prefix_rule(pattern = ["bin/triad", "status"], decision = "allow")
 prefix_rule(pattern = ["bin/triad", "--help"], decision = "allow")
 prefix_rule(pattern = ["bin/triad-new", "--help"], decision = "allow")
+prefix_rule(pattern = ["bin/triad-open-workspace"], decision = "allow")
 
 # --- Docker Composeの参照 ---
 prefix_rule(pattern = ["docker", "compose", "config"], decision = "allow")

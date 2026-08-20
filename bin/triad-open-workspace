@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+使用方法: triad-open-workspace <file>.code-workspace
+
+検証済みの*.code-workspaceファイルだけをVS Codeで開く、確認省略用の
+限定ラッパーです。任意のパスをcodeコマンドへ渡すことはできません。
+
+オプション:
+  -h, --help  このヘルプを表示する
+EOF
+}
+
+fail() {
+    printf 'エラー: %s\n' "$1" >&2
+    exit 2
+}
+
+case "${1-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+esac
+
+(($# == 1)) || fail "*.code-workspaceファイルを1つだけ指定してください"
+TARGET="$1"
+
+[[ "$TARGET" == *.code-workspace ]] || fail "*.code-workspaceファイルだけを開けます: $TARGET"
+[[ ! -L "$TARGET" ]] || fail "シンボリックリンクは開けません: $TARGET"
+[[ -f "$TARGET" ]] || fail "ファイルが存在しません: $TARGET"
+
+command -v python3 >/dev/null 2>&1 || fail "python3が見つかりません"
+python3 -c 'import json, sys; json.load(open(sys.argv[1], encoding="utf-8"))' "$TARGET" \
+    || fail "有効なJSONではありません: $TARGET"
+
+command -v code >/dev/null 2>&1 || fail "codeコマンドが見つかりません"
+
+exec code -- "$TARGET"

@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_PLATFORM_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+APP_DIR=""
+PLATFORM_DIR="$DEFAULT_PLATFORM_DIR"
+WORKSPACE_NAME=""
+OPEN_AFTER_WRITE=false
+FORCE=false
+
+usage() {
+    cat <<'EOF'
+使用方法: triad-workspace --app-dir DIR [オプション]
+
+アプリケーションのディレクトリへ、本基盤(triad-orchestrator)を
+同じVS Codeマルチルートワークスペースとして開くための
+*.code-workspace ファイルを生成します。ファイルはアプリ側の
+ディレクトリに作成し、triad-orchestrator側には作成しません。
+
+新規アプリ作成時はtriad-newが内部で呼び出します。既存アプリを
+本基盤へ後から取り込む場合は、このコマンドを単独で実行できます。
+
+オプション:
+  --app-dir DIR       ワークスペースファイルを生成するアプリのルート（必須）
+  --platform-dir DIR  triad-orchestratorのルート（既定: このコマンド自身の配置場所から算出）
+  --name NAME         ワークスペースファイル名・表示名（既定: --app-dirのディレクトリ名）
+  --open              生成後にcodeコマンドでVS Codeを開く
+  --force             既存の*.code-workspaceファイルを上書きする
+  -h, --help          このヘルプを表示する
+
+例:
+  ./bin/triad-workspace --app-dir ~/workspace/todo-app --open
+  ./bin/triad-workspace --app-dir /path/to/existing-app --name existing-app --force
+EOF
+}
+
+fail() {
+    printf 'エラー: %s\n' "$1" >&2
+    exit 2
+}
+
+require_value() {
+    local option="$1"
+    local value="${2-}"
+    [[ -n "$value" ]] || fail "$optionには値が必要です"
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --app-dir)
+            require_value "$1" "${2-}"
+            APP_DIR="$2"
+            shift 2
+            ;;
+        --platform-dir)
+            require_value "$1" "${2-}"
+            PLATFORM_DIR="$2"
+            shift 2
+            ;;
+        --name)
+            require_value "$1" "${2-}"
+            WORKSPACE_NAME="$2"
+            shift 2
+            ;;
+        --open)
+            OPEN_AFTER_WRITE=true
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            fail "不明なオプションです: $1"
+            ;;
+    esac
+done
+
+[[ -n "$APP_DIR" ]] || fail "--app-dirを指定してください"
+[[ -d "$APP_DIR" ]] || fail "アプリのディレクトリが存在しません: $APP_DIR"
+[[ -d "$PLATFORM_DIR" ]] || fail "triad-orchestratorのディレクトリが存在しません: $PLATFORM_DIR"
+
+command -v realpath >/dev/null 2>&1 || fail "realpathが見つかりません"
+command -v python3 >/dev/null 2>&1 || fail "python3が見つかりません"
+
+APP_DIR="$(cd -- "$APP_DIR" && pwd -P)"
+PLATFORM_DIR="$(cd -- "$PLATFORM_DIR" && pwd -P)"
+
+case "$APP_DIR" in
+    "$PLATFORM_DIR"|"$PLATFORM_DIR"/*)
+        fail "アプリのディレクトリはtriad-orchestratorの外にしてください: $APP_DIR"
+        ;;
+esac
+case "$PLATFORM_DIR" in
+    "$APP_DIR"/*)
+        fail "--platform-dirはアプリのディレクトリの外にしてください: $PLATFORM_DIR"
+        ;;
+esac
+
+if [[ -z "$WORKSPACE_NAME" ]]; then
+    WORKSPACE_NAME="$(basename -- "$APP_DIR")"
+fi
+[[ "$WORKSPACE_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] \
+    || fail "ワークスペース名は1～64文字の英数字、ピリオド、アンダースコア、ハイフンで指定してください（--nameで明示できます）"
+[[ "$WORKSPACE_NAME" != "." && "$WORKSPACE_NAME" != ".." ]] || fail "ワークスペース名に.または..は使用できません"
+
+RELATIVE_PLATFORM_PATH="$(realpath --relative-to="$APP_DIR" -- "$PLATFORM_DIR")"
+PLATFORM_NAME="$(basename -- "$PLATFORM_DIR")"
+
+WORKSPACE_FILE="$APP_DIR/$WORKSPACE_NAME.code-workspace"
+if [[ -e "$WORKSPACE_FILE" || -L "$WORKSPACE_FILE" ]] && ! $FORCE; then
+    fail "既にワークスペースファイルが存在します（上書きするには--forceを指定）: $WORKSPACE_FILE"
+fi
+if [[ -L "$WORKSPACE_FILE" ]]; then
+    fail "ワークスペースファイルの場所がシンボリックリンクです。安全のため書き込みを拒否します: $WORKSPACE_FILE"
+fi
+
+TEMP_FILE="$(mktemp -- "$APP_DIR/.${WORKSPACE_NAME}.code-workspace.XXXXXX")"
+trap 'rm -f -- "$TEMP_FILE"' EXIT
+
+python3 - "$WORKSPACE_NAME" "$RELATIVE_PLATFORM_PATH" "$PLATFORM_NAME" >"$TEMP_FILE" <<'PY'
+import json
+import sys
+
+app_name, platform_relative_path, platform_name = sys.argv[1:4]
+document = {
+    "folders": [
+        {"name": app_name, "path": "."},
+        {"name": platform_name, "path": platform_relative_path},
+    ]
+}
+print(json.dumps(document, ensure_ascii=False, indent=2))
+PY
+
+mv -f -- "$TEMP_FILE" "$WORKSPACE_FILE"
+trap - EXIT
+
+printf 'ワークスペースファイルを作成しました: %s\n' "$WORKSPACE_FILE"
+
+if $OPEN_AFTER_WRITE; then
+    "$SCRIPT_DIR/triad-open-workspace" "$WORKSPACE_FILE"
+fi
